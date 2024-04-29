@@ -1,0 +1,7 @@
+**/obj/
+**/bin/
+**/launchSettings.json
+**/*.pubxml
+**/*.pubxml.user
+.vs/
+**/Properties/
