@@ -21,6 +21,8 @@ namespace EngBlogJob.Models
 
         public string? Author { get; set; }
 
+        public string? Category { get; set; }
+
         public DateTimeOffset? UploadedTimestamp { get; set; }
 
         public DateTimeOffset? CrawledTimestamp { get; set; }

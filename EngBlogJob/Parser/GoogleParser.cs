@@ -1,8 +1,6 @@
 ﻿using EngBlogJob.Clients;
 using EngBlogJob.Models;
-using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
 
 namespace EngBlogJob.Parser
 {
@@ -14,81 +12,70 @@ namespace EngBlogJob.Parser
 
         public GoogleParser(ILoggerFactory loggerFactory, IWebClient webClient)
         {
-            _logger = loggerFactory.CreateLogger<HerokuParser>();
+            _logger = loggerFactory.CreateLogger<GoogleParser>();
             _webClient = webClient;
         }
 
         public async Task<List<Article>> GetArticles()
         {
             var articles = new List<Article>();
-            await _webClient.GetUrlContentAfterAction(_baseUrl, articles, ParsePage);
+            for (int page = 1; page <= 4; page++)
+            {
+                articles.AddRange(await GetPageArticle($"{_baseUrl}/en/search/?technology_categories=Mobile%2CWeb%2CAI%2CCloud&page={page}"));
+                await Task.Delay(1000);
+            }
             return articles;
         }
 
-        private async Task ParsePage(IPage page, List<Article> articles)
+        private async Task<List<Article>> GetPageArticle(string url)
         {
-            for(int i=1; i <= 4; i++)
+            var doc = _webClient.GetUrlContent(url);
+            var articleList = new List<Article>();
+            var articles = doc.DocumentNode.SelectNodes("//li[@class='search-result']");
+
+            if (articles != null)
             {
-                var pageContent = await page.ContentAsync();
-                var doc = new HtmlDocument();
-                doc.LoadHtml(pageContent);
-                articles.AddRange( await GetPageArticle(doc));                
-
-                await page.GetByRole(AriaRole.Link, new() { NameString = "Previous posts" }).ClickAsync();
-            }
-        }
-
-        private async Task<List<Article>> GetPageArticle(HtmlDocument doc)
-        {
-            var articles = new List<Article>();
-            var docArticles = doc.DocumentNode.SelectNodes("//div[contains(@class, 'dgc-card')]");
-
-            if (docArticles != null)
-            {
-                foreach(var docArticle in docArticles)
+                foreach (var articleNode in articles)
                 {
-                    var linkElement = docArticle.SelectSingleNode(".//a[contains(@class, 'dgc-card__href')]");
-                    if (linkElement == null)
+                    string dateAndCategory = articleNode.SelectSingleNode(".//p[@class='search-result__eyebrow']").InnerText;
+                    var splitted = dateAndCategory.Split('/');
+                    var date = splitted[0].Trim();
+                    var category = splitted[1].Trim();
+
+                    string title = articleNode.SelectSingleNode(".//h3/a").InnerText;
+                    string summary = articleNode.SelectSingleNode(".//p[@class='search-result__summary']").InnerText;
+                    string linkAddr = articleNode.SelectSingleNode(".//h3/a").GetAttributeValue("href", "");
+                    if (!linkAddr.StartsWith("https://"))
                     {
-                        continue;
+                        linkAddr = $"{_baseUrl}{linkAddr}";
                     }
-                    var link = linkElement.GetAttributeValue("href", null);
-                    var id = link;
+                    DateTimeOffset? timeCreated = date != null ? DateTimeOffset.Parse(date) : null;
 
-                    var imageElement = docArticle.SelectSingleNode(".//img[contains(@class, 'dgc-card__image')]");
-                    var imageUrl = imageElement.GetAttributeValue("src", null);
+                    string imageUrl = articleNode.SelectSingleNode(".//img").GetAttributeValue("src", "");
 
-                    var titleElement = docArticle.SelectSingleNode(".//div[contains(@class, 'dgc-card__title')]");
-                    var title = titleElement?.InnerText?.Trim();
-
-                    var descriptionElement = docArticle.SelectSingleNode(".//div[contains(@class, 'dgc-card__description')]");
-                    var description = descriptionElement?.InnerText?.Trim();
-
-                    var timeElement = docArticle.SelectSingleNode(".//div[contains(@class, 'dgc-card__info')]");
-                    var timeStr = timeElement?.InnerText?.Trim();
-                    DateTimeOffset? time = timeStr != null ? DateTimeOffset.Parse(timeStr) : null;
-
-                    if (title != null && link != null && id != null)
+                    if (title != null && linkAddr != null )
                     {
                         var newArticle = new Article
                         {
                             Id = Guid.NewGuid().ToString(),
-                            UniqueId = id,
+                            UniqueId = linkAddr,
                             Name = title,
-                            Description = description,
+                            Description = summary,
                             ImageSrc = imageUrl,
                             Owner = "Google",
-                            Link = link,
-                            UploadedTimestamp = time,
+                            Link = linkAddr,
+                            UploadedTimestamp = timeCreated,
                             Author = null,
+                            Category = category,
                             CrawledTimestamp = DateTimeOffset.Now
                         };
-                        articles.Add(newArticle);
+                        articleList.Add(newArticle);
                         _logger.LogInformation("Found article: {}", newArticle);
                     }
                 }
+
             }
-            return articles;
+            return articleList;
         }
     }
 }

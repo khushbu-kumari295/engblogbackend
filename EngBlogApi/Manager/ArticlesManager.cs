@@ -1,6 +1,5 @@
 ﻿using EngBlogJob;
 using EngBlogJob.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace EngBlogApi.Manager
 {
@@ -8,7 +7,6 @@ namespace EngBlogApi.Manager
     {
         private Lazy<IEnumerable<Article>> _lazyArticles;
         private readonly ILogger<ArticlesManager> _logger;
-        private readonly IEngBlogContext _dbContext;
         private readonly IServiceScopeFactory _scopeFactory;
 
         public ArticlesManager(ILogger<ArticlesManager> logger, IServiceScopeFactory scopeFactory)
