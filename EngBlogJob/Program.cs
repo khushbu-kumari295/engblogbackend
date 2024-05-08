@@ -33,13 +33,14 @@ hostBuilder.ConfigureServices((context, services) =>
     socketsHttpHandler.PooledConnectionLifetime = TimeSpan.FromMinutes(5);
     services.AddSingleton(socketsHttpHandler);
     var cosmosDbKey = Environment.GetEnvironmentVariable("COSMOS_DB_KEY");
-    if (cosmosDbKey == null)
+    var cosmosDbUrl = Environment.GetEnvironmentVariable("COSMOS_DB_URL");
+    if (cosmosDbKey == null || cosmosDbUrl == null)
     {
         throw new Exception("Cosmos DB Key is not provided");
     }
 
     services.AddDbContext<IEngBlogContext, EngBlogContext>(options => options.UseCosmos(
-        "https://kksideprojects.documents.azure.com:443/", 
+        cosmosDbUrl, 
         cosmosDbKey, 
         "EngBlogDb", (o) =>
         {

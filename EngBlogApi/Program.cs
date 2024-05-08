@@ -17,7 +17,7 @@ socketsHttpHandler.PooledConnectionLifetime = TimeSpan.FromMinutes(5);
 builder.Services.AddSingleton(socketsHttpHandler);
 
 builder.Services.AddDbContext<IEngBlogContext, EngBlogContext>(options => options.UseCosmos(
-    "https://kksideprojects.documents.azure.com:443/",
+    builder.Configuration["CosmosDbUrl"],
     builder.Configuration["CosmosDbKey"],
     "EngBlogDb", (o) =>
     {
